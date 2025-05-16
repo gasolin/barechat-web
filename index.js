@@ -1,9 +1,9 @@
-import ws from 'bare-ws'
 import process from 'bare-process'
 
 import { getBackend } from 'barechat/lib/chat-core'
 
 import { createChatServer } from './lib/server'
+import { createWebSocketServer, broadcastMessage } from './lib/ws'
 import { HTML } from './ui'
 
 // Initialize backend functionality from chat-core
@@ -21,9 +21,8 @@ const activeConnections = new Set()
 
 // Reference to the chat room topic
 let currentRoomTopic = null
-
-// Create HTTP server for serving the web interface
-const server = createChatServer(HTML)
+// wsServer will be init after command processed
+let wsServer = null
 
 // When there's a new peer connection in the swarm, listen for new messages
 swarm.on('connection', peer => {
@@ -34,7 +33,7 @@ swarm.on('connection', peer => {
     try {
       const event = JSON.parse(rawData)
       // Broadcast the message to all WebSocket clients
-      broadcastMessage({ type: 'message', sender: memberId, text: event.message })
+      broadcastMessage(activeConnections, { type: 'message', sender: memberId, text: event.message })
     } catch (error) {
       console.error('Error processing peer data:', error)
     }
@@ -43,74 +42,15 @@ swarm.on('connection', peer => {
   peer.on('error', e => console.log(`Connection error: ${e}`))
   
   // Notify WebSocket clients about new peer
-  broadcastMessage({ type: 'system', text: `New peer ${memberId} joined` })
+  broadcastMessage(activeConnections, { type: 'system', text: `New peer ${memberId} joined` })
 })
 
 // When there's updates to the swarm, notify about peer count
 swarm.on('update', () => {
   const peerCount = swarm.connections.size
   console.log(`[info] Number of connections is now ${peerCount}`)
-  broadcastMessage({ type: 'system', text: `Connected peers: ${peerCount}` })
+  broadcastMessage(activeConnections, { type: 'system', text: `Connected peers: ${peerCount}` })
 })
-
-// Create WebSocket server that shares the HTTP server's port
-const wsServer = new ws.Server({ server }, socket => {
-  console.log('[WebSocket] New client connected')
-  activeConnections.add(socket)
-  
-  // Send welcome message and room information
-  if (currentRoomTopic) {
-    socket.write(JSON.stringify({ 
-      type: 'system', 
-      text: `Welcome to BareChat! Current room: ${currentRoomTopic}` 
-    }))
-  } else {
-    socket.write(JSON.stringify({ 
-      type: 'system', 
-      text: 'Welcome to BareChat! No room joined yet.' 
-    }))
-  }
-  
-  // Handle WebSocket messages from clients
-  socket.on('data', data => {
-    try {
-      const message = JSON.parse(data.toString())
-      
-      if (message.type === 'command') {
-        handleCommand(message.command, socket)
-      } else if (message.type === 'chat') {
-        // Handle chat message
-        sendMessage(message.text)
-        // Broadcast to all clients including sender (with "me" as sender)
-        broadcastMessage({ type: 'message', sender: 'me', text: message.text })
-      }
-    } catch (error) {
-      console.error('Error processing WebSocket message:', error)
-    }
-  })
-  
-  socket.on('close', () => {
-    console.log('[WebSocket] Client disconnected')
-    activeConnections.delete(socket)
-  })
-  
-  socket.on('error', error => {
-    console.error('[WebSocket] Error:', error)
-    activeConnections.delete(socket)
-  })
-})
-
-// Broadcast message to all connected WebSocket clients
-function broadcastMessage(message) {
-  const messageStr = JSON.stringify(message)
-  for (const socket of activeConnections) {
-    try {
-      socket.write(messageStr)
-    } catch (error) {
-      console.error('Error sending to WebSocket client:', error)
-    }
-  }
-}
 
 // Handle commands from WebSocket clients
 async function handleCommand(command, socket) {
@@ -125,7 +65,7 @@ async function handleCommand(command, socket) {
         const message = `Created and joined new chat room: ${topic}`
         console.log(`[info] ${message}`)
         socket.write(JSON.stringify({ type: 'system', text: message }))
-        broadcastMessage({ type: 'system', text: message })
+        broadcastMessage(activeConnections, { type: 'system', text: message })
       } else {
         socket.write(JSON.stringify({ type: 'system', text: 'Failed to create chat room' }))
       }
@@ -145,7 +85,7 @@ async function handleCommand(command, socket) {
         const message = `Joined chat room: ${joinedTopic}`
         console.log(`[info] ${message}`)
         socket.write(JSON.stringify({ type: 'system', text: message }))
-        broadcastMessage({ type: 'system', text: message })
+        broadcastMessage(activeConnections, { type: 'system', text: message })
       } else {
         socket.write(JSON.stringify({ type: 'system', text: 'Failed to join chat room' }))
       }
@@ -163,19 +103,53 @@ async function handleCommand(command, socket) {
   }
 }
 
+// Create HTTP server for serving the web interface
+const webServer = createChatServer(HTML)
+
 // Start server on a random available port
-server.listen(0, () => {
-  const { port } = server.address()
+webServer.listen(0, () => {
+  const { port } = webServer.address()
   console.log(`BareChat Web server started on port ${port}`)
   console.log(`Open your browser and navigate to http://localhost:${port}`)
+
+  // Check for a hashcode argument and join the room if provided
+  const args = process.argv.slice(2); // First two args are typically 'bare' and 'index.js'
+  if (args.length > 0) {
+    const hashcode = args[0];
+    console.log(`[info] Attempting to join room with hashcode: ${hashcode}`);
+    joinRoom(hashcode).then(({ done, topic }) => {
+      if (done) {
+        currentRoomTopic = topic;
+        console.log(`[info] Successfully joined room: ${topic}`);
+        // You might want to add a mechanism to notify connected WebSocket clients here
+        // using the broadcastMessage function imported from lib/ws.js
+        broadcastMessage(activeConnections, { type: 'system', text: `Joined room with hashcode: ${hashcode}` });
+
+      } else {
+        console.error(`[error] Failed to join room with hashcode: ${hashcode}`);
+        // You might want to add a mechanism to notify connected WebSocket clients here
+         broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with hashcode: ${hashcode}` });
+      }
+    }).catch(error => {
+      console.error('[error] Error joining room:', error);
+       broadcastMessage(activeConnections, { type: 'system', text: `Error joining room: ${error.message}` });
+    }).finally(()=> {
+      // Create WebSocket server
+      wsServer = createWebSocketServer(webServer, activeConnections, currentRoomTopic, handleCommand);
+    });
+  } else {
+    console.log('[info] No hashcode provided, waiting for manual room creation or joining.');
+    // Create WebSocket server
+    wsServer = createWebSocketServer(webServer, activeConnections, currentRoomTopic, handleCommand);
+  }
 })
 
 // Clean up on process exit
 process.on('SIGINT', () => {
   console.log('\nShutting down BareChat Web...')
-  broadcastMessage({ type: 'system', text: 'Server shutting down' })
+  broadcastMessage(activeConnections, { type: 'system', text: 'Server shutting down' })
   swarm.destroy()
-  wsServer.close()
-  server.close()
+  wsServer?.close()
+  webServer.close()
   process.exit(0)
 })
