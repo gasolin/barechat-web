@@ -1,0 +1,33 @@
+{
+  "name": "barechat-web",
+  "version": "1.0.0",
+  "description": "Anonymous chat anywhere with localhost web interface",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "bare index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gasolin/barechat-web.git"
+  },
+  "keywords": [
+    "bare",
+    "chat",
+    "holepunch"
+  ],
+  "author": "Fred Lin <gasolin+barechat@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gasolin/barechat/issues"
+  },
+  "homepage": "https://github.com/gasolin/barechat-web",
+  "dependencies": {
+    "b4a": "^1.6.7",
+    "bare-http1": "^4.0.2",
+    "bare-ws": "^2.0.1",
+    "barechat": "^1.1.0",
+    "hypercore-crypto": "^3.6.0"
+  }
+}
