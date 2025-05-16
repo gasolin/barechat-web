@@ -8,7 +8,7 @@
     "barechat": "bin/main.sh"
   },
   "scripts": {
-    "start": "bare index.js",
+    "start": "bare index.js"
   },
   "repository": {
     "type": "git",
