@@ -24,10 +24,9 @@
   },
   "homepage": "https://github.com/gasolin/barechat-web",
   "dependencies": {
-    "b4a": "^1.6.7",
     "bare-http1": "^4.0.2",
+    "bare-process": "^4.2.1",
     "bare-ws": "^2.0.1",
-    "barechat": "^1.1.0",
-    "hypercore-crypto": "^3.6.0"
+    "barechat": "^1.1.0"
   }
 }
