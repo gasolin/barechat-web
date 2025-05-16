@@ -4,9 +4,11 @@
   "description": "Anonymous chat anywhere with localhost web interface",
   "main": "index.js",
   "type": "module",
+  "bin": {
+    "barechat": "bin/main.sh"
+  },
   "scripts": {
     "start": "bare index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
