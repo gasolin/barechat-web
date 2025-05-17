@@ -109,8 +109,10 @@ const webServer = createChatServer(HTML)
 // Start server on a random available port
 webServer.listen(0, () => {
   const { port } = webServer.address()
+  console.log('==================')
   console.log(`BareChat Web server started on port ${port}`)
   console.log(`Open your browser and navigate to http://localhost:${port}`)
+  console.log('==================')
 
   // Check for a hashcode argument and join the room if provided
   const args = process.argv.slice(2); // First two args are typically 'bare' and 'index.js'
@@ -123,24 +125,36 @@ webServer.listen(0, () => {
         console.log(`[info] Successfully joined room: ${topic}`);
         // You might want to add a mechanism to notify connected WebSocket clients here
         // using the broadcastMessage function imported from lib/ws.js
-        broadcastMessage(activeConnections, { type: 'system', text: `Joined room with hashcode: ${hashcode}` });
+        broadcastMessage(activeConnections, { type: 'system', text: `Joined room with hashcode: ${hashcode}` })
 
       } else {
         console.error(`[error] Failed to join room with hashcode: ${hashcode}`);
         // You might want to add a mechanism to notify connected WebSocket clients here
-         broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with hashcode: ${hashcode}` });
+         broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with hashcode: ${hashcode}` })
       }
     }).catch(error => {
       console.error('[error] Error joining room:', error);
-       broadcastMessage(activeConnections, { type: 'system', text: `Error joining room: ${error.message}` });
+       broadcastMessage(activeConnections, { type: 'system', text: `Error joining room: ${error.message}` })
     }).finally(()=> {
       // Create WebSocket server
-      wsServer = createWebSocketServer(webServer, activeConnections, currentRoomTopic, handleCommand);
-    });
+      wsServer = createWebSocketServer({
+        webServer,
+        activeConnections,
+        currentRoomTopic,
+        handleCommand,
+        sendMessage
+      })
+    })
   } else {
     console.log('[info] No hashcode provided, waiting for manual room creation or joining.');
     // Create WebSocket server
-    wsServer = createWebSocketServer(webServer, activeConnections, currentRoomTopic, handleCommand);
+    wsServer = createWebSocketServer({
+        webServer,
+        activeConnections,
+        currentRoomTopic,
+        handleCommand,
+        sendMessage
+      })
   }
 })
 

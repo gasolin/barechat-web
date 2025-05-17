@@ -1,4 +1,183 @@
 // HTML content
+const JS = `
+// User avatars mapping
+const avatars = {
+    me: "🧝",
+    system: "🔮",
+};
+
+// Get a default avatar for users we haven't seen before
+const defaultAvatars = ["🧙", "⚔️", "🏹", "🛡️", "🐉", "🐺", "🦊", "🦁", "🦝", "🦡"];
+let avatarIndex = 0;
+
+// Keep track of which users we've assigned avatars to
+const knownUsers = {};
+
+// Function to get avatar for a user
+function getAvatar(userId) {
+    if (avatars[userId]) return avatars[userId];
+    if (knownUsers[userId]) return knownUsers[userId];
+
+    const newAvatar = defaultAvatars[avatarIndex % defaultAvatars.length];
+    avatarIndex++;
+    knownUsers[userId] = newAvatar;
+    return newAvatar;
+}
+
+// Function to add a message to the chat
+function addMessageToChat(messageData) {
+    const chatContent = document.getElementById('chat-content');
+    const { type, sender, text } = messageData;
+
+    const messageDiv = document.createElement('div');
+
+    if (type === 'system') {
+        messageDiv.className = 'message system';
+
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+
+        const textDiv = document.createElement('div');
+        textDiv.textContent = text;
+
+        messageContent.appendChild(textDiv);
+        messageDiv.appendChild(messageContent);
+    } else {
+        messageDiv.className = \`message \${sender === 'me' ? 'me' : 'other'}\`; // Using template literal for class name
+
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'message-sender';
+        const avatar = getAvatar(sender);
+        senderDiv.textContent = \`\${avatar} \${sender === 'me' ? 'You' : sender}\`; // Using template literal for sender text
+
+        const textDiv = document.createElement('div');
+        textDiv.textContent = text;
+
+        messageContent.appendChild(senderDiv);
+        messageContent.appendChild(textDiv);
+        messageDiv.appendChild(messageContent);
+    }
+
+    chatContent.appendChild(messageDiv);
+
+    // Scroll to bottom
+    chatContent.scrollTop = chatContent.scrollHeight;
+}
+
+// Initialize WebSocket connection
+let ws = null;
+
+function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = \`\${protocol}//\${window.location.host}\`; // Using template literal for WebSocket URL
+
+    ws = new WebSocket(wsUrl);
+    console.log('link to ' + wsUrl)
+
+    ws.onopen = function() {
+        console.log('WebSocket connected');
+        addMessageToChat({
+            type: 'system',
+            text: 'Connected to server'
+        });
+    };
+
+    ws.onmessage = function(event) {
+        const message = JSON.parse(event.data);
+        addMessageToChat(message);
+    };
+
+    ws.onclose = function() {
+        console.log('WebSocket closed');
+        addMessageToChat({
+            type: 'system',
+            text: 'Disconnected from server. Reconnecting in 5 seconds...'
+        });
+
+        // Try to reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        addMessageToChat({
+            type: 'system',
+            text: 'Error connecting to server'
+        });
+    };
+}
+
+// Set up UI interactions
+window.onload = function() {
+    // Connect to WebSocket server
+    connectWebSocket();
+
+    const sendButton = document.getElementById('send-button');
+    const chatInput = document.getElementById('chat-input');
+    const joinButton = document.getElementById('join-button');
+    const createButton = document.getElementById('create-button');
+    const infoButton = document.getElementById('info-button');
+    const roomInput = document.getElementById('room-input');
+
+    function sendChatMessage() {
+        const messageText = chatInput.value.trim();
+        if (messageText && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'chat',
+                text: messageText
+            }));
+            chatInput.value = '';
+        }
+    }
+
+    function sendCommand(command) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'command',
+                command: command
+            }));
+        }
+    }
+
+    sendButton.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendChatMessage();
+        }
+    });
+
+    joinButton.addEventListener('click', function() {
+        const roomId = roomInput.value.trim();
+        if (roomId) {
+            sendCommand(\`join \${roomId}\`); // Using template literal for join command
+            roomInput.value = '';
+        } else {
+            addMessageToChat({
+                type: 'system',
+                text: 'Please enter a room ID to join'
+            });
+        }
+    });
+
+    createButton.addEventListener('click', function() {
+        sendCommand('create');
+    });
+
+    infoButton.addEventListener('click', function() {
+        sendCommand('info');
+    });
+
+    roomInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            joinButton.click();
+        }
+    });
+};
+`
+
 export const HTML = `
 <!DOCTYPE html>
 <html lang="en">
@@ -135,181 +314,7 @@ export const HTML = `
 
     <script src="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.4/dist/rpgui.min.js"></script>
     <script>
-        // User avatars mapping
-        const avatars = {
-            me: "🧝",
-            system: "🔮",
-        };
-
-        // Get a default avatar for users we haven't seen before
-        const defaultAvatars = ["🧙", "⚔️", "🏹", "🛡️", "🐉", "🐺", "🦊", "🦁", "🦝", "🦡"];
-        let avatarIndex = 0;
-
-        // Keep track of which users we've assigned avatars to
-        const knownUsers = {};
-
-        // Function to get avatar for a user
-        function getAvatar(userId) {
-            if (avatars[userId]) return avatars[userId];
-            if (knownUsers[userId]) return knownUsers[userId];
-
-            const newAvatar = defaultAvatars[avatarIndex % defaultAvatars.length];
-            avatarIndex++;
-            knownUsers[userId] = newAvatar;
-            return newAvatar;
-        }
-
-        // Function to add a message to the chat
-        function addMessageToChat(messageData) {
-            const chatContent = document.getElementById('chat-content');
-            const { type, sender, text } = messageData;
-
-            const messageDiv = document.createElement('div');
-
-            if (type === 'system') {
-                messageDiv.className = 'message system';
-
-                const messageContent = document.createElement('div');
-                messageContent.className = 'message-content';
-
-                const textDiv = document.createElement('div');
-                textDiv.textContent = text;
-
-                messageContent.appendChild(textDiv);
-                messageDiv.appendChild(messageContent);
-            } else {
-                messageDiv.className = \`message \${sender === 'me' ? 'me' : 'other'}\`; // Using template literal for class name
-
-                const messageContent = document.createElement('div');
-                messageContent.className = 'message-content';
-
-                const senderDiv = document.createElement('div');
-                senderDiv.className = 'message-sender';
-                const avatar = getAvatar(sender);
-                senderDiv.textContent = \`\${avatar} \${sender === 'me' ? 'You' : sender}\`; // Using template literal for sender text
-
-                const textDiv = document.createElement('div');
-                textDiv.textContent = text;
-
-                messageContent.appendChild(senderDiv);
-                messageContent.appendChild(textDiv);
-                messageDiv.appendChild(messageContent);
-            }
-
-            chatContent.appendChild(messageDiv);
-
-            // Scroll to bottom
-            chatContent.scrollTop = chatContent.scrollHeight;
-        }
-
-        // Initialize WebSocket connection
-        let ws = null;
-
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = \`\${protocol}//\${window.location.host}\`; // Using template literal for WebSocket URL
-
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-                addMessageToChat({
-                    type: 'system',
-                    text: 'Connected to server'
-                });
-            };
-
-            ws.onmessage = function(event) {
-                const message = JSON.parse(event.data);
-                addMessageToChat(message);
-            };
-
-            ws.onclose = function() {
-                console.log('WebSocket closed');
-                addMessageToChat({
-                    type: 'system',
-                    text: 'Disconnected from server. Reconnecting in 5 seconds...'
-                });
-
-                // Try to reconnect after 5 seconds
-                setTimeout(connectWebSocket, 5000);
-            };
-
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                addMessageToChat({
-                    type: 'system',
-                    text: 'Error connecting to server'
-                });
-            };
-        }
-
-        // Set up UI interactions
-        window.onload = function() {
-            // Connect to WebSocket server
-            connectWebSocket();
-
-            const sendButton = document.getElementById('send-button');
-            const chatInput = document.getElementById('chat-input');
-            const joinButton = document.getElementById('join-button');
-            const createButton = document.getElementById('create-button');
-            const infoButton = document.getElementById('info-button');
-            const roomInput = document.getElementById('room-input');
-
-            function sendChatMessage() {
-                const messageText = chatInput.value.trim();
-                if (messageText && ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: 'chat',
-                        text: messageText
-                    }));
-                    chatInput.value = '';
-                }
-            }
-
-            function sendCommand(command) {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: 'command',
-                        command: command
-                    }));
-                }
-            }
-
-            sendButton.addEventListener('click', sendChatMessage);
-            chatInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendChatMessage();
-                }
-            });
-
-            joinButton.addEventListener('click', function() {
-                const roomId = roomInput.value.trim();
-                if (roomId) {
-                    sendCommand(\`join \${roomId}\`); // Using template literal for join command
-                    roomInput.value = '';
-                } else {
-                    addMessageToChat({
-                        type: 'system',
-                        text: 'Please enter a room ID to join'
-                    });
-                }
-            });
-
-            createButton.addEventListener('click', function() {
-                sendCommand('create');
-            });
-
-            infoButton.addEventListener('click', function() {
-                sendCommand('info');
-            });
-
-            roomInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    joinButton.click();
-                }
-            });
-        };
+        ${JS}
     </script>
 </body>
 </html>
