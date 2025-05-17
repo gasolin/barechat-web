@@ -54,7 +54,7 @@ Open your browser and navigate to http://localhost:[port]
 
 By anouncing the hashcode somewhere you can chat anonymously.
 
-> and its fully compatible to chat with [barechat](https://github.com/gasolin/barechat)
+> And its fully compatible to chat with [barechat](https://github.com/gasolin/barechat)
 
 ## Clone and Setup
 
