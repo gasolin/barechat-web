@@ -29,6 +29,17 @@ function addMessageToChat(messageData) {
     const chatContent = document.getElementById('chat-content');
     const { type, sender, text } = messageData;
 
+    // Check if it's a system message about connected peers or connection status
+    if (type === 'system' && text.startsWith('Connected peers:')) {
+        updateStatusBar(text);
+        return; // Don't add this to the main chat
+    }
+
+    if (type === 'system' && (text.startsWith('Connected to server') || text.startsWith('Disconnected from server') || text.startsWith('Error connecting to server'))) {
+         updateStatusBar(\`Server Status: \${text}\`);
+         return; // Don't add this to the main chat for now, can be refined later
+    }
+
     const messageDiv = document.createElement('div');
 
     if (type === 'system') {
@@ -65,6 +76,14 @@ function addMessageToChat(messageData) {
 
     // Scroll to bottom
     chatContent.scrollTop = chatContent.scrollHeight;
+}
+
+// Function to update the status bar
+function updateStatusBar(text) {
+    const statusBar = document.getElementById('status-bar');
+    if (statusBar) {
+        statusBar.textContent = text;
+    }
 }
 
 // Initialize WebSocket connection
@@ -203,6 +222,14 @@ export const HTML = `
             padding: 10px;
             box-sizing: border-box;
         }
+         .status-bar {
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: center;
+            background-color: #5a6268;
+            color: white;
+            border-radius: 5px;
+        }
         .chat-content {
             flex-grow: 1;
             overflow-y: auto;
@@ -294,6 +321,10 @@ export const HTML = `
             <button class="rpgui-button" id="info-button">
                 <p>Info</p>
             </button>
+        </div>
+
+        <div class="rpgui-container framed-grey status-bar" id="status-bar">
+            Server Status: Connecting...
         </div>
 
         <div class="rpgui-container framed chat-content" id="chat-content">
