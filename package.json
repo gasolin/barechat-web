@@ -4,9 +4,7 @@
   "description": "Anonymous chat anywhere with localhost web interface",
   "main": "index.js",
   "type": "module",
-  "bin": {
-    "barechat-web": "bin/main.sh"
-  },
+  "bin": "bin/main.js",
   "scripts": {
     "start": "bare index.js"
   },
