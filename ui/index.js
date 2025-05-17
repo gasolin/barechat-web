@@ -75,7 +75,7 @@ function connectWebSocket() {
     const wsUrl = \`\${protocol}//\${window.location.host}\`; // Using template literal for WebSocket URL
 
     ws = new WebSocket(wsUrl);
-    console.log('link to ' + wsUrl)
+    console.log('linking to ' + wsUrl)
 
     ws.onopen = function() {
         console.log('WebSocket connected');
