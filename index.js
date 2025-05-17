@@ -113,7 +113,7 @@ async function handleCommand(command, socket) {
         currentRoomTopic = joinedTopic
         const message = `Joined chat room: ${joinedTopic}`
         console.log(`[info] ${message}`)
-        socket.write(JSON.stringify({ type: 'system', text: message }))
+        // socket.write(JSON.stringify({ type: 'system', text: message }))
         broadcastMessage(activeConnections, { type: 'system', text: message })
       } else {
         socket.write(JSON.stringify({ type: 'system', text: 'Failed to join chat room' }))
