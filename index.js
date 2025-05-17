@@ -6,7 +6,36 @@ import { createChatServer } from './lib/server'
 import { createWebSocketServer, broadcastMessage } from './lib/ws'
 import { HTML } from './ui'
 
+// Simple command-line argument parser
+function parseArgs(argv) {
+  const result = { key: '', store: null }
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+
+    if (arg === '--store') {
+      // Handle --store option without value (use default)
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
+        result.store = './barechat.txt'
+      } else {
+        // Handle --store with value
+        result.store = argv[i + 1]
+        i++ // Skip the next argument as it's the value
+      }
+    } else if (arg.startsWith('--store=')) {
+      // Handle --store=path format
+      const value = arg.substring('--store='.length)
+      result.store = value || './barechat.txt'
+    } else if (!arg.startsWith('--') && !result.key) {
+      // First non-option argument is treated as the key
+      result.key = arg
+    }
+  }
+  return result
+}
+
 // Initialize backend functionality from chat-core
+const args = parseArgs(process.argv.slice(2)); // Use parseArgs to process command line arguments
 const {
   swarm,
   getMemberId,
@@ -14,7 +43,7 @@ const {
   joinRoom,
   sendMessage,
   version
-} = getBackend()
+} = getBackend(args)
 
 // Stores active WebSocket connections
 const activeConnections = new Set()
@@ -69,7 +98,7 @@ async function handleCommand(command, socket) {
       } else {
         socket.write(JSON.stringify({ type: 'system', text: 'Failed to create chat room' }))
       }
-      break;
+      break
       
     case 'join':
       if (parts.length < 2) {
@@ -115,26 +144,28 @@ webServer.listen(0, () => {
   console.log('==================')
 
   // Check for a hashcode argument and join the room if provided
-  const args = process.argv.slice(2); // First two args are typically 'bare' and 'index.js'
-  if (args.length > 0) {
-    const hashcode = args[0];
+  const cliArgs = process.argv.slice(2); // First two args are typically 'bare' and 'index.js'
+  const parsedArgs = parseArgs(cliArgs); // Use parseArgs here as well
+
+  if (parsedArgs.key) { // Check if the 'key' property from parsedArgs exists
+    const hashcode = parsedArgs.key
     console.log(`[info] Attempting to join room with hashcode: ${hashcode}`);
     joinRoom(hashcode).then(({ done, topic }) => {
       if (done) {
-        currentRoomTopic = topic;
-        console.log(`[info] Successfully joined room: ${topic}`);
+        currentRoomTopic = topic
+        console.log(`[info] Successfully joined room: ${topic}`)
         // You might want to add a mechanism to notify connected WebSocket clients here
         // using the broadcastMessage function imported from lib/ws.js
         broadcastMessage(activeConnections, { type: 'system', text: `Joined room with hashcode: ${hashcode}` })
 
       } else {
-        console.error(`[error] Failed to join room with hashcode: ${hashcode}`);
+        console.error(`[error] Failed to join room with hashcode: ${hashcode}`)
         // You might want to add a mechanism to notify connected WebSocket clients here
          broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with hashcode: ${hashcode}` })
       }
     }).catch(error => {
-      console.error('[error] Error joining room:', error);
-       broadcastMessage(activeConnections, { type: 'system', text: `Error joining room: ${error.message}` })
+      console.error('[error] Error joining room:', error)
+      broadcastMessage(activeConnections, { type: 'system', text: `Error joining room: ${error.message}` })
     }).finally(()=> {
       // Create WebSocket server
       wsServer = createWebSocketServer({
@@ -146,7 +177,7 @@ webServer.listen(0, () => {
       })
     })
   } else {
-    console.log('[info] No hashcode provided, waiting for manual room creation or joining.');
+    console.log('[info] No hashcode provided, waiting for manual room creation or joining.')
     // Create WebSocket server
     wsServer = createWebSocketServer({
         webServer,
