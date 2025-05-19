@@ -36,8 +36,8 @@ function addMessageToChat(messageData) {
     }
 
     if (type === 'system' && (text.startsWith('Connected to server') || text.startsWith('Disconnected from server') || text.startsWith('Error connecting to server'))) {
-         updateStatusBar(\`Server Status: \${text}\`);
-         return; // Don't add this to the main chat for now, can be refined later
+        updateStatusBar('Server Status: ' + text);
+        return; // Don't add this to the main chat for now, can be refined later
     }
 
     const messageDiv = document.createElement('div');
@@ -54,7 +54,7 @@ function addMessageToChat(messageData) {
         messageContent.appendChild(textDiv);
         messageDiv.appendChild(messageContent);
     } else {
-        messageDiv.className = \`message \${sender === 'me' ? 'me' : 'other'}\`; // Using template literal for class name
+        messageDiv.className = 'message ' + sender === 'me' ? 'me' : 'other'; // Using template literal for class name
 
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
@@ -62,7 +62,7 @@ function addMessageToChat(messageData) {
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
         const avatar = getAvatar(sender);
-        senderDiv.textContent = \`\${avatar} \${sender === 'me' ? 'You' : sender}\`; // Using template literal for sender text
+        senderDiv.textContent = avatar +' ' + sender === 'me' ? 'You' : sender; // Using template literal for sender text
 
         const textDiv = document.createElement('div');
         textDiv.textContent = text;
@@ -91,7 +91,7 @@ let ws = null;
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = \`\${protocol}//\${window.location.host}\`; // Using template literal for WebSocket URL
+    const wsUrl = protocol + '//' + window.location.host; // Using template literal for WebSocket URL
 
     ws = new WebSocket(wsUrl);
     console.log('linking to ' + wsUrl)
@@ -100,7 +100,7 @@ function connectWebSocket() {
         console.log('WebSocket connected');
         addMessageToChat({
             type: 'system',
-            text: 'Connected to server'
+            text: 'WebSocket Connected'
         });
     };
 
@@ -113,7 +113,7 @@ function connectWebSocket() {
         console.log('WebSocket closed');
         addMessageToChat({
             type: 'system',
-            text: 'Disconnected from server. Reconnecting in 5 seconds...'
+            text: 'WebSocket Disconnected. Reconnecting in 5 seconds...'
         });
 
         // Try to reconnect after 5 seconds
@@ -124,7 +124,7 @@ function connectWebSocket() {
         console.error('WebSocket error:', error);
         addMessageToChat({
             type: 'system',
-            text: 'Error connecting to server'
+            text: 'WebSocket connecting Error'
         });
     };
 }
@@ -171,7 +171,7 @@ window.onload = function() {
     joinButton.addEventListener('click', function() {
         const roomId = roomInput.value.trim();
         if (roomId) {
-            sendCommand(\`join \${roomId}\`); // Using template literal for join command
+            sendCommand('join ' + roomId); // Using template literal for join command
             roomInput.value = '';
         } else {
             addMessageToChat({
@@ -204,7 +204,7 @@ export const HTML = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BareChat Web</title>
-    <link href="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.4/dist/rpgui.min.css" rel="stylesheet" type="text/css">
+    <link href="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.3/dist/rpgui.min.css" rel="stylesheet" type="text/css">
     <style>
         body, html {
             margin: 0;
@@ -222,7 +222,7 @@ export const HTML = `
             padding: 10px;
             box-sizing: border-box;
         }
-         .status-bar {
+        .status-bar {
             padding: 10px;
             margin-bottom: 10px;
             text-align: center;
@@ -235,11 +235,14 @@ export const HTML = `
             overflow-y: auto;
             padding: 10px;
             margin-bottom: 10px;
+            position: relative;
+            min-height: 200px;
         }
         .chat-input-container {
             display: flex;
             padding: 10px;
             margin-bottom: 10px;
+            position: relative;
         }
         .chat-input {
             flex-grow: 1;
@@ -250,11 +253,14 @@ export const HTML = `
             margin-bottom: 15px;
             clear: both;
             max-width: 70%;
+            // overflow: hidden;
         }
         .message-content {
             padding: 10px;
             border-radius: 5px;
             display: inline-block;
+            word-wrap: break-word;
+            max-width: 90%;
         }
         .message-sender {
             font-weight: bold;
@@ -297,6 +303,7 @@ export const HTML = `
             display: flex;
             padding: 10px;
             margin-bottom: 10px;
+            position: relative;
         }
         .command-input {
             flex-grow: 1;
@@ -305,6 +312,33 @@ export const HTML = `
         }
         .rpgui-button {
             margin-left: 5px;
+            position: relative;
+            min-width: 80px;
+            height: auto !important;
+        }
+        .rpgui-button p {
+            margin: 0;
+            padding: 5px;
+        }
+        .room-controls .rpgui-button {
+            padding-left: 10px;
+        }
+        /* Fix input fields in RPGUI 1.0.3 */
+        .rpgui-input {
+            position: relative;
+            height: auto !important;
+            min-height: 32px;
+        }
+        /* Fix container spacing */
+        .rpgui-container {
+            position: relative;
+            margin-bottom: 10px;
+            overflow: visible;
+        }
+        /* Ensure content doesn't overflow */
+        #chat-content .message {
+            position: relative;
+            z-index: 1;
         }
     </style>
 </head>
@@ -324,7 +358,7 @@ export const HTML = `
         </div>
 
         <div class="rpgui-container framed-grey status-bar" id="status-bar">
-            Server Status: Connecting...
+            Connecting WebSocket...
         </div>
 
         <div class="rpgui-container framed chat-content" id="chat-content">
@@ -343,7 +377,7 @@ export const HTML = `
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.4/dist/rpgui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.3/dist/rpgui.min.js"></script>
     <script>
         ${JS}
     </script>

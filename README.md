@@ -73,6 +73,7 @@ npm start
 ## Reference
 
 - [barechat](https://github.com/gasolin/barechat)
+- [RPGUI](https://github.com/RonenNess/RPGUI#rpgui)
 
 ## License
 
