@@ -24,6 +24,13 @@ function getAvatar(userId) {
     return newAvatar;
 }
 
+// Function to format timestamp
+function getFormattedTime() {
+    const now = new Date();
+    return now.getHours().toString().padStart(2, '0') + ':' +
+            now.getMinutes().toString().padStart(2, '0');
+}
+
 // Function to add a message to the chat
 function addMessageToChat(messageData) {
     const chatContent = document.getElementById('chat-content');
@@ -35,7 +42,9 @@ function addMessageToChat(messageData) {
         return; // Don't add this to the main chat
     }
 
-    if (type === 'system' && (text.startsWith('Connected to server') || text.startsWith('Disconnected from server') || text.startsWith('Error connecting to server'))) {
+    if (type === 'system' && (text.startsWith('WebSocket connected') ||
+      text.startsWith('WebSocket Disconnected') ||
+      text.startsWith('WebSocket connecting Error'))) {
         updateStatusBar('Server Status: ' + text);
         return; // Don't add this to the main chat for now, can be refined later
     }
@@ -54,25 +63,47 @@ function addMessageToChat(messageData) {
         messageContent.appendChild(textDiv);
         messageDiv.appendChild(messageContent);
     } else {
-        messageDiv.className = 'message ' + sender === 'me' ? 'me' : 'other'; // Using template literal for class name
+        // Determine if this is the user's message or someone else's
+        const isMe = sender === 'me'
+        messageDiv.className = 'message ' + (isMe ? 'me' : 'other'); // Corrected ternary operator usage
 
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
 
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
+
         const avatar = getAvatar(sender);
-        senderDiv.textContent = avatar +' ' + sender === 'me' ? 'You' : sender; // Using template literal for sender text
+        const avatarSpan = document.createElement('span');
+        avatarSpan.className = 'avatar';
+        avatarSpan.textContent = avatar;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = isMe ? ' You' : ' ' + sender;
+
+        senderDiv.appendChild(avatarSpan);
+        senderDiv.appendChild(nameSpan);
 
         const textDiv = document.createElement('div');
         textDiv.textContent = text;
 
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = getFormattedTime();
+
         messageContent.appendChild(senderDiv);
         messageContent.appendChild(textDiv);
+        messageContent.appendChild(timeDiv);
         messageDiv.appendChild(messageContent);
     }
 
-    chatContent.appendChild(messageDiv);
+    // Create a wrapper to help with clearing floats if needed
+    // Note: With flexbox used for alignment, the float clearing container might be less necessary,
+    // but we'll keep it for now as it was in the original structure.
+    const bubbleContainer = document.createElement('div');
+    bubbleContainer.className = 'chat-bubbles-container';
+    bubbleContainer.appendChild(messageDiv);
+    chatContent.appendChild(bubbleContainer);
 
     // Scroll to bottom
     chatContent.scrollTop = chatContent.scrollHeight;
@@ -91,7 +122,7 @@ let ws = null;
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = protocol + '//' + window.location.host; // Using template literal for WebSocket URL
+    const wsUrl = protocol + '//' + window.location.host;
 
     ws = new WebSocket(wsUrl);
     console.log('linking to ' + wsUrl)
@@ -148,6 +179,7 @@ window.onload = function() {
                 type: 'chat',
                 text: messageText
             }));
+
             chatInput.value = '';
         }
     }
@@ -194,6 +226,9 @@ window.onload = function() {
             joinButton.click();
         }
     });
+
+    // Focus on input for better UX
+    chatInput.focus();
 };
 `
 
@@ -210,8 +245,10 @@ export const HTML = `
             margin: 0;
             padding: 0;
             height: 100%;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
+            font-family: 'Press Start 2P', cursive, monospace;
+            /* Removed overflow: hidden; */
+            background-color: #222;
+            color: #eee;
         }
         .chat-container {
             display: flex;
@@ -226,23 +263,29 @@ export const HTML = `
             padding: 10px;
             margin-bottom: 10px;
             text-align: center;
-            background-color: #5a6268;
-            color: white;
+            background-color: #444;
+            color: #fff;
             border-radius: 5px;
+            font-size: 0.9em;
         }
         .chat-content {
             flex-grow: 1;
-            overflow-y: auto;
+            overflow-y: auto; /* This should enable scrolling */
+            overflow-x: hidden; /* Hide horizontal scrolling */
             padding: 10px;
             margin-bottom: 10px;
             position: relative;
-            min-height: 200px;
+            min-height: 300px; /* Ensure it has a minimum height */
+            background-color: #333;
+            display: flex; /* Added display: flex */
+            flex-direction: column; /* Added flex-direction: column */
         }
         .chat-input-container {
             display: flex;
             padding: 10px;
             margin-bottom: 10px;
             position: relative;
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .chat-input {
             flex-grow: 1;
@@ -251,59 +294,89 @@ export const HTML = `
         }
         .message {
             margin-bottom: 15px;
-            clear: both;
             max-width: 70%;
-            // overflow: hidden;
+            /* Removed float properties */
+            /* Removed overflow: hidden; */
         }
         .message-content {
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 8px;
             display: inline-block;
+            max-width: 100%;
+            position: relative;
             word-wrap: break-word;
-            max-width: 90%;
+            /* adjust line-height */
+            line-height: 1.6;
         }
         .message-sender {
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
         }
+        /* Other user messages */
         .message.other {
-            float: left;
+            /* Removed float: left; */
+            text-align: left; /* Ensure text alignment is correct */
         }
         .message.other .message-content {
             background-color: #4a4a4a;
             color: white;
+            border: 2px solid #666;
         }
+        .message.other .message-content::after {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 10px;
+            border-width: 5px 10px 5px 0;
+            border-style: solid;
+            border-color: transparent #4a4a4a transparent transparent;
+        }
+        /* My messages */
         .message.me {
-            float: right;
-            text-align: right;
+            /* Removed float: right; */
+            text-align: right; /* Ensure text alignment is correct */
         }
         .message.me .message-content {
-            background-color: #007bff;
+            background-color: #75621b;
             color: white;
+            border: 2px solid #9c7f21;
         }
+        .message.me .message-content::after {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 10px;
+            border-width: 5px 0 5px 10px;
+            border-style: solid;
+            border-color: transparent transparent transparent #75621b;
+        }
+        /* System messages */
         .message.system {
-            clear: both;
+            clear: both; /* Keep clear: both for system messages if they need to break floats (though floats are removed now) */
             text-align: center;
             max-width: 100%;
-            margin: 10px 0;
+            margin: 15px auto;
         }
         .message.system .message-content {
-            background-color: #6c757d;
+            background-color: rgba(108, 117, 125, 0.7);
             color: white;
             display: inline-block;
+            border: 1px solid #888;
+            font-size: 0.85em;
+            padding: 8px 15px;
         }
         .avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin-right: 10px;
-            vertical-align: middle;
+            font-size: 1.2em;
+            margin-right: 5px;
         }
         .room-controls {
             display: flex;
             padding: 10px;
             margin-bottom: 10px;
             position: relative;
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .command-input {
             flex-grow: 1;
@@ -321,7 +394,7 @@ export const HTML = `
             padding: 5px;
         }
         .room-controls .rpgui-button {
-            padding-left: 10px;
+            padding-left: 5px;
         }
         /* Fix input fields in RPGUI 1.0.3 */
         .rpgui-input {
@@ -333,18 +406,59 @@ export const HTML = `
         .rpgui-container {
             position: relative;
             margin-bottom: 10px;
-            overflow: visible;
+            /* overflow: visible;  Keep as rpgui default */
         }
-        /* Ensure content doesn't overflow */
-        #chat-content .message {
-            position: relative;
-            z-index: 1;
+        /* Chat bubble container - used as a flex item within chat-content */
+        .chat-bubbles-container {
+            width: 100%;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+
+        /* Align messages within the chat-bubbles-container using align-self */
+        .chat-bubbles-container .message.other {
+            align-self: flex-start;
+        }
+
+        .chat-bubbles-container .message.me {
+            align-self: flex-end;
+        }
+
+        .chat-bubbles-container .message.system {
+            align-self: center;
+        }
+        /* Header styling */
+        .app-header {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #ffd700;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        /* Room info display */
+        .room-info {
+            font-size: 0.8em;
+            text-align: center;
+            margin-top: 5px;
+            color: #aaa;
+        }
+        /* Message timestamp */
+        .message-time {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body class="rpgui-content">
     <div class="chat-container">
-        <div class="rpgui-container framed-grey room-controls">
+        <div class="app-header">
+            <h1>BareChat Web</h1>
+        </div>
+
+        <div class="rpgui-container framed-golden room-controls">
             <input type="text" class="rpgui-input command-input" id="room-input" placeholder="Enter room ID to join...">
             <button class="rpgui-button" id="join-button">
                 <p>Join</p>
@@ -361,15 +475,15 @@ export const HTML = `
             Connecting WebSocket...
         </div>
 
-        <div class="rpgui-container framed chat-content" id="chat-content">
+        <div class="rpgui-container framed-grey chat-content" id="chat-content">
             <div class="message system">
                 <div class="message-content">
-                    <div>Welcome to BareChat Web! Create a new room or join an existing one.</div>
+                    <div>Welcome to BareChat! Create a new room or join an existing one.</div>
                 </div>
             </div>
         </div>
 
-        <div class="rpgui-container framed-grey chat-input-container">
+        <div class="rpgui-container framed-golden chat-input-container">
             <input type="text" class="rpgui-input chat-input" id="chat-input" placeholder="Type your message...">
             <button class="rpgui-button" id="send-button">
                 <p>Send</p>
