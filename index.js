@@ -9,6 +9,9 @@ import { HTML } from './ui'
 
 // Initialize backend functionality from chat-core
 const args = parseArgs(process.argv.slice(2)); // Use parseArgs to process command line arguments
+// console.log('args:', JSON.stringify(args))
+const hashcode = args.topic || ''
+
 const {
   swarm,
   getMemberId,
@@ -58,7 +61,7 @@ swarm.on('update', () => {
 async function handleCommand(command, socket) {
   const parts = command.split(' ')
   const cmd = parts[0].toLowerCase()
-  
+
   switch (cmd) {
     case 'create':
       const { done: createDone, topic } = await createRoom()
@@ -116,12 +119,7 @@ webServer.listen(0, () => {
   console.log(`Open your browser and navigate to http://localhost:${port}`)
   console.log('==================')
 
-  // Check for a hashcode argument and join the room if provided
-  const cliArgs = process.argv.slice(2); // First two args are typically 'bare' and 'index.js'
-  const parsedArgs = parseArgs(cliArgs); // Use parseArgs here as well
-
-  if (parsedArgs.key) { // Check if the 'key' property from parsedArgs exists
-    const hashcode = parsedArgs.key
+  if (hashcode) { // Check if passed args with topic
     console.log(`[info] Attempting to join room with hashcode: ${hashcode}`);
     joinRoom(hashcode).then(({ done, topic }) => {
       if (done) {

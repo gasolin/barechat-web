@@ -27,6 +27,6 @@
     "bare-http1": "^4.0.2",
     "bare-process": "^4.2.1",
     "bare-ws": "^2.0.1",
-    "barechat": "^1.4.0"
+    "barechat": "^1.4.1"
   }
 }
