@@ -1,38 +1,11 @@
 import process from 'bare-process'
 
 import { getBackend } from 'barechat/lib/chat-core'
+import { parseArgs } from 'barechat/lib/helper'
 
 import { createChatServer } from './lib/server'
 import { createWebSocketServer, broadcastMessage } from './lib/ws'
 import { HTML } from './ui'
-
-// Simple command-line argument parser
-function parseArgs(argv) {
-  const result = { key: '', store: null }
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]
-
-    if (arg === '--store') {
-      // Handle --store option without value (use default)
-      if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) {
-        result.store = './barechat.txt'
-      } else {
-        // Handle --store with value
-        result.store = argv[i + 1]
-        i++ // Skip the next argument as it's the value
-      }
-    } else if (arg.startsWith('--store=')) {
-      // Handle --store=path format
-      const value = arg.substring('--store='.length)
-      result.store = value || './barechat.txt'
-    } else if (!arg.startsWith('--') && !result.key) {
-      // First non-option argument is treated as the key
-      result.key = arg
-    }
-  }
-  return result
-}
 
 // Initialize backend functionality from chat-core
 const args = parseArgs(process.argv.slice(2)); // Use parseArgs to process command line arguments

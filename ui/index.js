@@ -2,12 +2,12 @@
 const JS = `
 // User avatars mapping
 const avatars = {
-    me: "🧝",
-    system: "🔮",
+    me: "🧑",
+    system: "⚙️",
 };
 
 // Get a default avatar for users we haven't seen before
-const defaultAvatars = ["🧙", "⚔️", "🏹", "🛡️", "🐉", "🐺", "🦊", "🦁", "🦝", "🦡"];
+const defaultAvatars = ["😀", "😊", "😎", "🤩", "🥳", "😇", "🤓", "🤯", "🚀", "💡"];
 let avatarIndex = 0;
 
 // Keep track of which users we've assigned avatars to
@@ -30,6 +30,72 @@ function getFormattedTime() {
     return now.getHours().toString().padStart(2, '0') + ':' +
             now.getMinutes().toString().padStart(2, '0');
 }
+
+// Function to copy message text to clipboard
+async function copyMessageText(messageElement) {
+    try {
+        // Find the element containing the message text
+        // This targets the div inside .message-content for both regular and system messages
+        const textElement = messageElement.querySelector('.message-content div');
+        if (textElement && textElement.textContent) {
+            await navigator.clipboard.writeText(textElement.textContent);
+            console.log('Message copied to clipboard:', textElement.textContent);
+            // Notification will be shown by the caller after successful copy
+            return true; // Indicate success
+        }
+    } catch (err) {
+        console.error('Failed to copy message: ', err);
+        // Optionally show an error notification here
+        return false; // Indicate failure
+    }
+    return false; // Indicate failure (e.g., text element not found)
+}
+
+// Function to show a temporary notification
+function showCopyNotification() {
+    const notificationId = 'copy-notification';
+    let notification = document.getElementById(notificationId);
+
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = notificationId;
+        notification.textContent = 'Message copied!';
+        // Basic styling, more can be added in CSS
+        notification.style.cssText = \`
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--notion-button-bg);
+            color: var(--notion-button-text);
+            padding: 10px 20px;
+            border-radius: var(--notion-radius);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none; /* Allow clicks to pass through */
+            box-shadow: var(--notion-shadow);
+        \`;
+        document.body.appendChild(notification);
+    }
+
+    // Reset transition and show the notification
+    notification.style.transition = 'none';
+    notification.style.opacity = 1;
+
+    // Apply fade-out transition after a short delay
+    setTimeout(() => {
+        notification.style.transition = 'opacity 0.5s ease-in-out';
+        notification.style.opacity = 0;
+        // Optional: remove the element after it fades out completely
+        // setTimeout(() => {
+        //     if (notification.parentNode) {
+        //         notification.parentNode.removeChild(notification);
+        //     }
+        // }, 500); // Matches the fade-out duration
+    }, 2000); // Show for 2 seconds
+}
+
 
 // Function to add a message to the chat
 function addMessageToChat(messageData) {
@@ -64,8 +130,12 @@ function addMessageToChat(messageData) {
         messageDiv.appendChild(messageContent);
     } else {
         // Determine if this is the user's message or someone else's
-        const isMe = sender === 'me'
-        messageDiv.className = 'message ' + (isMe ? 'me' : 'other'); // Corrected ternary operator usage
+        const isMe = sender === 'me';
+        messageDiv.className = 'message ' + (isMe ? 'me' : 'other');
+
+        const avatarSpan = document.createElement('span');
+        avatarSpan.className = 'avatar';
+        avatarSpan.textContent = getAvatar(sender);
 
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
@@ -73,13 +143,8 @@ function addMessageToChat(messageData) {
         const senderDiv = document.createElement('div');
         senderDiv.className = 'message-sender';
 
-        const avatar = getAvatar(sender);
-        const avatarSpan = document.createElement('span');
-        avatarSpan.className = 'avatar';
-        avatarSpan.textContent = avatar;
-
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = isMe ? ' You' : ' ' + sender;
+        nameSpan.textContent = isMe ? 'You' : sender; // Removed leading space
 
         senderDiv.appendChild(avatarSpan);
         senderDiv.appendChild(nameSpan);
@@ -97,13 +162,47 @@ function addMessageToChat(messageData) {
         messageDiv.appendChild(messageContent);
     }
 
-    // Create a wrapper to help with clearing floats if needed
-    // Note: With flexbox used for alignment, the float clearing container might be less necessary,
-    // but we'll keep it for now as it was in the original structure.
-    const bubbleContainer = document.createElement('div');
-    bubbleContainer.className = 'chat-bubbles-container';
-    bubbleContainer.appendChild(messageDiv);
-    chatContent.appendChild(bubbleContainer);
+    // Add event listeners for long press to copy message
+    let pressTimer;
+    const longPressDuration = 500; // milliseconds
+
+    const startPress = (e) => {
+        // Prevent default context menu on right-click/long-press
+        if (e.type === 'contextmenu') {
+            e.preventDefault();
+            copyMessageAndNotify();
+            return;
+        }
+
+        pressTimer = setTimeout(async () => {
+            // Long press detected
+            copyMessageAndNotify();
+        }, longPressDuration);
+    };
+
+    const copyMessageAndNotify = async () => {
+        const copiedSuccessfully = await copyMessageText(messageDiv);
+        if (copiedSuccessfully) {
+            showCopyNotification();
+        }
+    };
+
+    const cancelPress = () => {
+        clearTimeout(pressTimer);
+    };
+
+    // For mouse events
+    messageDiv.addEventListener('mousedown', startPress);
+    messageDiv.addEventListener('mouseup', cancelPress);
+    messageDiv.addEventListener('mouseleave', cancelPress);
+    messageDiv.addEventListener('contextmenu', startPress); // Handle right-click for context menu
+
+    // For touch events
+    messageDiv.addEventListener('touchstart', startPress, { passive: true }); // Use passive: true for better scrolling performance
+    messageDiv.addEventListener('touchend', cancelPress);
+    messageDiv.addEventListener('touchcancel', cancelPress);
+
+    chatContent.appendChild(messageDiv);
 
     // Scroll to bottom
     chatContent.scrollTop = chatContent.scrollHeight;
@@ -203,7 +302,7 @@ window.onload = function() {
     joinButton.addEventListener('click', function() {
         const roomId = roomInput.value.trim();
         if (roomId) {
-            sendCommand('join ' + roomId); // Using template literal for join command
+            sendCommand('join ' + roomId);
             roomInput.value = '';
         } else {
             addMessageToChat({
@@ -230,7 +329,7 @@ window.onload = function() {
     // Focus on input for better UX
     chatInput.focus();
 };
-`
+`;
 
 export const HTML = `
 <!DOCTYPE html>
@@ -238,244 +337,236 @@ export const HTML = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BareChat Web</title>
-    <link href="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.3/dist/rpgui.min.css" rel="stylesheet" type="text/css">
+    <title>BareChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --notion-bg: #f7f7f7;
+            --notion-text: #37352f;
+            --notion-border: rgba(55, 53, 47, 0.16);
+            --notion-input-bg: white;
+            --notion-button-bg: #37352f;
+            --notion-button-text: white;
+            --notion-hover-bg: rgba(55, 53, 47, 0.08);
+            --notion-active-bg: rgba(55, 53, 47, 0.16);
+            --notion-message-bg-other: white;
+            --notion-message-bg-me: #e0f2f7; /* Light blue for me */
+            --notion-message-bg-system: #f0f0f0; /* Light grey for system */
+            --notion-shadow: rgba(15, 15, 15, 0.05) 0px 0px 0px 1px, rgba(15, 15, 15, 0.1) 0px 3px 6px, rgba(15, 15, 15, 0.2) 0px 9px 24px;
+            --notion-radius: 3px;
+        }
+
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
-            font-family: 'Press Start 2P', cursive, monospace;
-            /* Removed overflow: hidden; */
-            background-color: #222;
-            color: #eee;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--notion-bg);
+            color: var(--notion-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .chat-container {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 10px;
-            box-sizing: border-box;
+            width: 100%;
+            max-width: 768px; /* Standard Notion-like width */
+            height: 90vh; /* Adjust height for a more document-like feel */
+            background-color: var(--notion-input-bg);
+            border: 1px solid var(--notion-border);
+            box-shadow: var(--notion-shadow);
+            border-radius: var(--notion-radius);
+            overflow: hidden; /* Ensure content stays within bounds */
+        }
+        .app-header {
+            padding: 20px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: 600;
+            border-bottom: 1px solid var(--notion-border);
+            flex-shrink: 0;
         }
         .status-bar {
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 12px 20px;
             text-align: center;
-            background-color: #444;
-            color: #fff;
-            border-radius: 5px;
+            background-color: var(--notion-message-bg-system);
+            border-bottom: 1px solid var(--notion-border);
             font-size: 0.9em;
+            color: var(--notion-text);
+            flex-shrink: 0;
         }
         .chat-content {
             flex-grow: 1;
-            overflow-y: auto; /* This should enable scrolling */
-            overflow-x: hidden; /* Hide horizontal scrolling */
-            padding: 10px;
-            margin-bottom: 10px;
-            position: relative;
-            min-height: 300px; /* Ensure it has a minimum height */
-            background-color: #333;
-            display: flex; /* Added display: flex */
-            flex-direction: column; /* Added flex-direction: column */
-        }
-        .chat-input-container {
-            display: flex;
-            padding: 10px;
-            margin-bottom: 10px;
-            position: relative;
-            flex-shrink: 0; /* Prevent shrinking */
-        }
-        .chat-input {
-            flex-grow: 1;
-            margin-right: 10px;
-            padding: 10px;
-        }
-        .message {
-            margin-bottom: 15px;
-            max-width: 70%;
-            /* Removed float properties */
-            /* Removed overflow: hidden; */
-        }
-        .message-content {
-            padding: 12px;
-            border-radius: 8px;
-            display: inline-block;
-            max-width: 100%;
-            position: relative;
-            word-wrap: break-word;
-            /* adjust line-height */
-            line-height: 1.6;
-        }
-        .message-sender {
-            font-weight: bold;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-        }
-        /* Other user messages */
-        .message.other {
-            /* Removed float: left; */
-            text-align: left; /* Ensure text alignment is correct */
-        }
-        .message.other .message-content {
-            background-color: #4a4a4a;
-            color: white;
-            border: 2px solid #666;
-        }
-        .message.other .message-content::after {
-            content: '';
-            position: absolute;
-            left: -10px;
-            top: 10px;
-            border-width: 5px 10px 5px 0;
-            border-style: solid;
-            border-color: transparent #4a4a4a transparent transparent;
-        }
-        /* My messages */
-        .message.me {
-            /* Removed float: right; */
-            text-align: right; /* Ensure text alignment is correct */
-        }
-        .message.me .message-content {
-            background-color: #75621b;
-            color: white;
-            border: 2px solid #9c7f21;
-        }
-        .message.me .message-content::after {
-            content: '';
-            position: absolute;
-            right: -10px;
-            top: 10px;
-            border-width: 5px 0 5px 10px;
-            border-style: solid;
-            border-color: transparent transparent transparent #75621b;
-        }
-        /* System messages */
-        .message.system {
-            clear: both; /* Keep clear: both for system messages if they need to break floats (though floats are removed now) */
-            text-align: center;
-            max-width: 100%;
-            margin: 15px auto;
-        }
-        .message.system .message-content {
-            background-color: rgba(108, 117, 125, 0.7);
-            color: white;
-            display: inline-block;
-            border: 1px solid #888;
-            font-size: 0.85em;
-            padding: 8px 15px;
-        }
-        .avatar {
-            font-size: 1.2em;
-            margin-right: 5px;
-        }
-        .room-controls {
-            display: flex;
-            padding: 10px;
-            margin-bottom: 10px;
-            position: relative;
-            flex-shrink: 0; /* Prevent shrinking */
-        }
-        .command-input {
-            flex-grow: 1;
-            margin-right: 10px;
-            padding: 10px;
-        }
-        .rpgui-button {
-            margin-left: 5px;
-            position: relative;
-            min-width: 80px;
-            height: auto !important;
-        }
-        .rpgui-button p {
-            margin: 0;
-            padding: 5px;
-        }
-        .room-controls .rpgui-button {
-            padding-left: 5px;
-        }
-        /* Fix input fields in RPGUI 1.0.3 */
-        .rpgui-input {
-            position: relative;
-            height: auto !important;
-            min-height: 32px;
-        }
-        /* Fix container spacing */
-        .rpgui-container {
-            position: relative;
-            margin-bottom: 10px;
-            /* overflow: visible;  Keep as rpgui default */
-        }
-        /* Chat bubble container - used as a flex item within chat-content */
-        .chat-bubbles-container {
-            width: 100%;
-            margin-bottom: 10px;
+            overflow-y: auto;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            flex-shrink: 0; /* Prevent shrinking */
+            gap: 10px; /* Space between messages */
+        }
+        .chat-controls-container {
+            display: flex;
+            padding: 12px 20px;
+            border-top: 1px solid var(--notion-border);
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .chat-input, .room-input {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--notion-border);
+            border-radius: var(--notion-radius);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95em;
+            color: var(--notion-text);
+            background-color: var(--notion-input-bg);
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        .chat-input:focus, .room-input:focus {
+            border-color: #37352f; /* Darker border on focus */
+        }
+        .button {
+            padding: 10px 15px;
+            background-color: var(--notion-button-bg);
+            color: var(--notion-button-text);
+            border: none;
+            border-radius: var(--notion-radius);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95em;
+            font-weight: 500;
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+        .button:hover {
+            background-color: rgba(55, 53, 47, 0.8);
+        }
+        .button:active {
+            background-color: rgba(55, 53, 47, 1);
         }
 
-        /* Align messages within the chat-bubbles-container using align-self */
-        .chat-bubbles-container .message.other {
-            align-self: flex-start;
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0; /* Vertical padding to match Notion list items */
+            max-width: calc(100% - 20px); /* Account for padding */
+        }
+        .message-content {
+            padding: 10px 15px;
+            border-radius: var(--notion-radius);
+            word-wrap: break-word;
+            flex-grow: 1;
+            box-shadow: rgba(15, 15, 15, 0.02) 0px 1px 1px; /* Subtle Notion-like shadow */
+            line-height: 1.5;
+            cursor: pointer; /* Indicate it's interactive */
+            transition: background-color 0.2s ease;
+        }
+        .message-content:hover {
+            background-color: var(--notion-hover-bg) !important; /* Override background for hover */
         }
 
-        .chat-bubbles-container .message.me {
-            align-self: flex-end;
+        .message-sender {
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
         }
-
-        .chat-bubbles-container .message.system {
-            align-self: center;
+        .avatar {
+            font-size: 1.1em;
+            line-height: 1; /* Align emoji better */
         }
-        /* Header styling */
-        .app-header {
-            text-align: center;
-            margin-bottom: 15px;
-            font-size: 1.2em;
-            color: #ffd700;
-            flex-shrink: 0; /* Prevent shrinking */
-        }
-        /* Room info display */
-        .room-info {
-            font-size: 0.8em;
-            text-align: center;
-            margin-top: 5px;
-            color: #aaa;
-        }
-        /* Message timestamp */
         .message-time {
             font-size: 0.75em;
-            opacity: 0.7;
-            margin-top: 5px;
+            color: rgba(55, 53, 47, 0.6);
+            margin-top: 4px;
+            text-align: right; /* Time on the right for all messages */
+        }
+
+        /* Other user messages */
+        .message.other {
+            align-self: flex-start;
+        }
+        .message.other .message-content {
+            background-color: var(--notion-message-bg-other);
+            border: 1px solid var(--notion-border);
+            color: var(--notion-text);
+        }
+        .message.other .message-sender {
+            color: var(--notion-text);
+        }
+
+        /* My messages */
+        .message.me {
+            align-self: flex-end;
+            flex-direction: row-reverse; /* Avatar on the right */
+        }
+        .message.me .message-content {
+            background-color: var(--notion-message-bg-me);
+            border: 1px solid rgba(179, 230, 243, 0.8);
+            color: var(--notion-text);
+        }
+        .message.me .message-sender {
+            justify-content: flex-end; /* Align sender name to the right */
+        }
+
+        /* System messages */
+        .message.system {
+            align-self: center;
+            text-align: center;
+            max-width: 80%; /* Smaller width for system messages */
+        }
+        .message.system .message-content {
+            background-color: var(--notion-message-bg-system);
+            color: rgba(55, 53, 47, 0.7);
+            font-size: 0.8em;
+            padding: 8px 12px;
+            border: 1px solid rgba(55, 53, 47, 0.08);
+        }
+        .message.system .message-sender,
+        .message.system .message-time {
+            display: none; /* Hide for system messages */
+        }
+
+        /* Notification styling */
+        #copy-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--notion-button-bg);
+            color: var(--notion-button-text);
+            padding: 10px 20px;
+            border-radius: var(--notion-radius);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none;
+            font-size: 0.9em;
+            box-shadow: var(--notion-shadow);
         }
     </style>
 </head>
-<body class="rpgui-content">
+<body>
     <div class="chat-container">
         <div class="app-header">
-            <h1>BareChat Web</h1>
+            BareChat Web
         </div>
 
-        <div class="rpgui-container framed-golden room-controls">
-            <input type="text" class="rpgui-input command-input" id="room-input" placeholder="Enter room ID to join...">
-            <button class="rpgui-button" id="join-button">
-                <p>Join</p>
-            </button>
-            <button class="rpgui-button" id="create-button">
-                <p>Create</p>
-            </button>
-            <button class="rpgui-button" id="info-button">
-                <p>Info</p>
-            </button>
+        <div class="chat-controls-container">
+            <input type="text" class="room-input" id="room-input" placeholder="Enter room ID to join...">
+            <button class="button" id="join-button">Join</button>
+            <button class="button" id="create-button">Create</button>
+            <button class="button" id="info-button">Info</button>
         </div>
 
-        <div class="rpgui-container framed-grey status-bar" id="status-bar">
+        <div class="status-bar" id="status-bar">
             Connecting WebSocket...
         </div>
 
-        <div class="rpgui-container framed-grey chat-content" id="chat-content">
+        <div class="chat-content" id="chat-content">
             <div class="message system">
                 <div class="message-content">
                     <div>Welcome to BareChat! Create a new room or join an existing one.</div>
@@ -483,15 +574,12 @@ export const HTML = `
             </div>
         </div>
 
-        <div class="rpgui-container framed-golden chat-input-container">
-            <input type="text" class="rpgui-input chat-input" id="chat-input" placeholder="Type your message...">
-            <button class="rpgui-button" id="send-button">
-                <p>Send</p>
-            </button>
+        <div class="chat-controls-container">
+            <input type="text" class="chat-input" id="chat-input" placeholder="Type your message...">
+            <button class="button" id="send-button">Send</button>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/gh/RonenNess/RPGUI@1.0.3/dist/rpgui.min.js"></script>
     <script>
         ${JS}
     </script>
