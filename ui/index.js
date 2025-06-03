@@ -267,7 +267,6 @@ window.onload = function() {
     const sendButton = document.getElementById('send-button');
     const chatInput = document.getElementById('chat-input');
     const joinButton = document.getElementById('join-button');
-    const createButton = document.getElementById('create-button');
     const infoButton = document.getElementById('info-button');
     const roomInput = document.getElementById('room-input');
 
@@ -310,10 +309,6 @@ window.onload = function() {
                 text: 'Please enter a room ID to join'
             });
         }
-    });
-
-    createButton.addEventListener('click', function() {
-        sendCommand('create');
     });
 
     infoButton.addEventListener('click', function() {
@@ -558,7 +553,6 @@ export const HTML = `
         <div class="chat-controls-container">
             <input type="text" class="room-input" id="room-input" placeholder="Enter room ID to join...">
             <button class="button" id="join-button">Join</button>
-            <button class="button" id="create-button">Create</button>
             <button class="button" id="info-button">Info</button>
         </div>
 

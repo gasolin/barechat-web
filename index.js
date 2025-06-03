@@ -15,7 +15,6 @@ const hashcode = args.topic || ''
 const {
   swarm,
   getMemberId,
-  createRoom,
   joinRoom,
   sendMessage,
   version
@@ -63,28 +62,10 @@ async function handleCommand(command, socket) {
   const cmd = parts[0].toLowerCase()
 
   switch (cmd) {
-    case 'create':
-      const { done: createDone, topic } = await createRoom()
-      if (createDone) {
-        currentRoomTopic = topic
-        const message = `Created and joined new chat room: ${topic}`
-        console.log(`[info] ${message}`)
-        socket.write(JSON.stringify({ type: 'system', text: message }))
-        broadcastMessage(activeConnections, { type: 'system', text: message })
-      } else {
-        socket.write(JSON.stringify({ type: 'system', text: 'Failed to create chat room' }))
-      }
-      break
-      
-    case 'join':
-      if (parts.length < 2) {
-        socket.write(JSON.stringify({ type: 'system', text: 'Please provide a room topic to join' }))
-        return
-      }
-      
-      const roomKey = parts[1]
-      const { done: joinDone, topic: joinedTopic } = await joinRoom(roomKey)
-      
+    case 'join': {
+      // create or join with a topic
+      const { done: joinDone, topic: joinedTopic } = await joinRoom(parts[1] || '')
+
       if (joinDone) {
         currentRoomTopic = joinedTopic
         const message = `Joined chat room: ${joinedTopic}`
@@ -95,14 +76,14 @@ async function handleCommand(command, socket) {
         socket.write(JSON.stringify({ type: 'system', text: 'Failed to join chat room' }))
       }
       break;
-      
+    }
     case 'info':
-      socket.write(JSON.stringify({ 
-        type: 'system', 
+      socket.write(JSON.stringify({
+        type: 'system',
         text: `BareChat v.${version}\nCurrent room: ${currentRoomTopic || 'None'}\nConnected peers: ${swarm.connections.size}`
       }))
       break;
-      
+
     default:
       socket.write(JSON.stringify({ type: 'system', text: `Unknown command: ${cmd}` }))
   }
@@ -120,19 +101,19 @@ webServer.listen(0, () => {
   console.log('==================')
 
   if (hashcode) { // Check if passed args with topic
-    console.log(`[info] Attempting to join room with hashcode: ${hashcode}`);
+    console.log(`[info] Attempting to join room with topic: ${hashcode}`);
     joinRoom(hashcode).then(({ done, topic }) => {
       if (done) {
         currentRoomTopic = topic
         console.log(`[info] Successfully joined room: ${topic}`)
         // You might want to add a mechanism to notify connected WebSocket clients here
         // using the broadcastMessage function imported from lib/ws.js
-        broadcastMessage(activeConnections, { type: 'system', text: `Joined room with hashcode: ${hashcode}` })
+        broadcastMessage(activeConnections, { type: 'system', text: `Joined room with topic: ${hashcode}` })
 
       } else {
-        console.error(`[error] Failed to join room with hashcode: ${hashcode}`)
+        console.error(`[error] Failed to join room with topic: ${hashcode}`)
         // You might want to add a mechanism to notify connected WebSocket clients here
-         broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with hashcode: ${hashcode}` })
+        broadcastMessage(activeConnections, { type: 'system', text: `Failed to join room with topic: ${hashcode}` })
       }
     }).catch(error => {
       console.error('[error] Error joining room:', error)
