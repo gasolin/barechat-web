@@ -4,6 +4,11 @@ Anonymous chat anywhere with localhost web interface
 
 It based on [barechat](https://github.com/gasolin/barechat) and provide a local web chat UI instead of terminal.
 
+|project |version |
+|--------|--------|
+| terminal | ![NPM Version](https://img.shields.io/npm/v/barechat) |
+| web (this) | ![NPM Version](https://img.shields.io/npm/v/barechat-web) |
+
 ## Features
 
 - Instant chat with localhost web UI
